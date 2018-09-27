@@ -2,8 +2,7 @@
 # -*- mode: shell-script; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
 # ex: ts=8 sw=4 sts=4 et filetype=sh
 set -e
-TEST_DESCRIPTION="Job-related tests"
-TEST_NO_QEMU=1
+TEST_DESCRIPTION="Journal-related tests"
 
 . $TEST_BASE_DIR/test-functions
 
@@ -26,16 +25,20 @@ Description=Testsuite service
 After=multi-user.target
 
 [Service]
-ExecStart=/test-jobs.sh
+ExecStart=/test-journal.sh
 Type=oneshot
-StandardOutput=tty
-StandardError=tty
 EOF
 
-        # copy the units used by this test
-        cp $TEST_BASE_DIR/{hello.service,sleep.service,hello-after-sleep.target,unstoppable.service} \
-            $initdir/etc/systemd/system
-        cp test-jobs.sh $initdir/
+        cat >$initdir/etc/systemd/system/forever-print-hola.service <<EOF
+[Unit]
+Description=ForeverPrintHola service
+
+[Service]
+Type=simple
+ExecStart=/bin/sh -x -c 'while :; do printf "Hola\n" || touch /i-lose-my-logs; sleep 1; done'
+EOF
+
+        cp test-journal.sh $initdir/
 
         setup_testsuite
     ) || return 1

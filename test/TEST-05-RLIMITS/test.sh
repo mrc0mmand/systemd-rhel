@@ -2,8 +2,7 @@
 # -*- mode: shell-script; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
 # ex: ts=8 sw=4 sts=4 et filetype=sh
 set -e
-TEST_DESCRIPTION="Job-related tests"
-TEST_NO_QEMU=1
+TEST_DESCRIPTION="Resource limits-related tests"
 
 . $TEST_BASE_DIR/test-functions
 
@@ -19,6 +18,11 @@ test_setup() {
 
         setup_basic_environment
 
+        cat >$initdir/etc/systemd/system.conf <<EOF
+[Manager]
+DefaultLimitNOFILE=10000:16384
+EOF
+
         # setup the testsuite service
         cat >$initdir/etc/systemd/system/testsuite.service <<EOF
 [Unit]
@@ -26,16 +30,11 @@ Description=Testsuite service
 After=multi-user.target
 
 [Service]
-ExecStart=/test-jobs.sh
+ExecStart=/test-rlimits.sh
 Type=oneshot
-StandardOutput=tty
-StandardError=tty
 EOF
 
-        # copy the units used by this test
-        cp $TEST_BASE_DIR/{hello.service,sleep.service,hello-after-sleep.target,unstoppable.service} \
-            $initdir/etc/systemd/system
-        cp test-jobs.sh $initdir/
+        cp test-rlimits.sh $initdir/
 
         setup_testsuite
     ) || return 1

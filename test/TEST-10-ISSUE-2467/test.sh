@@ -2,8 +2,7 @@
 # -*- mode: shell-script; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
 # ex: ts=8 sw=4 sts=4 et filetype=sh
 set -e
-TEST_DESCRIPTION="Basic systemd setup"
-RUN_IN_UNPRIVILEGED_CONTAINER=yes
+TEST_DESCRIPTION="https://github.com/systemd/systemd/issues/2467"
 
 . $TEST_BASE_DIR/test-functions
 
@@ -18,16 +17,34 @@ test_setup() {
         eval $(udevadm info --export --query=env --name=${LOOPDEV}p2)
 
         setup_basic_environment
+        dracut_install true rm
 
         # setup the testsuite service
-        cat >$initdir/etc/systemd/system/testsuite.service <<EOF
+        cat >$initdir/etc/systemd/system/testsuite.service <<'EOF'
 [Unit]
 Description=Testsuite service
 After=multi-user.target
 
 [Service]
-ExecStart=/bin/sh -x -c 'systemctl --state=failed --no-legend --no-pager > /failed ; echo OK > /testok'
 Type=oneshot
+StandardOutput=tty
+StandardError=tty
+ExecStart=/bin/sh -e -x -c 'rm -f /tmp/nonexistent; systemctl start test.socket; echo > /run/test.ctl; >/testok'
+TimeoutStartSec=10s
+EOF
+
+	cat  >$initdir/etc/systemd/system/test.socket <<'EOF'
+[Socket]
+ListenFIFO=/run/test.ctl
+EOF
+
+	cat > $initdir/etc/systemd/system/test.service <<'EOF'
+[Unit]
+Requires=test.socket
+ConditionPathExistsGlob=/tmp/nonexistent
+
+[Service]
+ExecStart=/bin/true
 EOF
 
         setup_testsuite

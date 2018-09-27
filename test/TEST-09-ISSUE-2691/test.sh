@@ -2,10 +2,11 @@
 # -*- mode: shell-script; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
 # ex: ts=8 sw=4 sts=4 et filetype=sh
 set -e
-TEST_DESCRIPTION="Basic systemd setup"
-RUN_IN_UNPRIVILEGED_CONTAINER=yes
+TEST_DESCRIPTION="https://github.com/systemd/systemd/issues/2691"
+TEST_NO_NSPAWN=1
 
 . $TEST_BASE_DIR/test-functions
+QEMU_TIMEOUT=180
 
 test_setup() {
     create_empty_image
@@ -20,19 +21,21 @@ test_setup() {
         setup_basic_environment
 
         # setup the testsuite service
-        cat >$initdir/etc/systemd/system/testsuite.service <<EOF
+        cat >$initdir/etc/systemd/system/testsuite.service <<'EOF'
 [Unit]
 Description=Testsuite service
 After=multi-user.target
 
 [Service]
-ExecStart=/bin/sh -x -c 'systemctl --state=failed --no-legend --no-pager > /failed ; echo OK > /testok'
 Type=oneshot
+ExecStart=/bin/sh -c '>/testok'
+RemainAfterExit=yes
+ExecStop=/bin/sh -c 'kill -SEGV $$$$'
+TimeoutStopSec=270s
 EOF
 
         setup_testsuite
     ) || return 1
-    setup_nspawn_root
 
     # mask some services that we do not want to run in these tests
     ln -s /dev/null $initdir/etc/systemd/system/systemd-hwdb-update.service

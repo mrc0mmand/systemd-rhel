@@ -2,8 +2,7 @@
 # -*- mode: shell-script; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
 # ex: ts=8 sw=4 sts=4 et filetype=sh
 set -e
-TEST_DESCRIPTION="Job-related tests"
-TEST_NO_QEMU=1
+TEST_DESCRIPTION="test changing main PID"
 
 . $TEST_BASE_DIR/test-functions
 
@@ -12,7 +11,6 @@ test_setup() {
     mkdir -p $TESTDIR/root
     mount ${LOOPDEV}p1 $TESTDIR/root
 
-    # Create what will eventually be our root filesystem onto an overlay
     (
         LOG_LEVEL=5
         eval $(udevadm info --export --query=env --name=${LOOPDEV}p2)
@@ -23,19 +21,15 @@ test_setup() {
         cat >$initdir/etc/systemd/system/testsuite.service <<EOF
 [Unit]
 Description=Testsuite service
-After=multi-user.target
 
 [Service]
-ExecStart=/test-jobs.sh
+ExecStart=/bin/bash -x /testsuite.sh
 Type=oneshot
 StandardOutput=tty
 StandardError=tty
+NotifyAccess=all
 EOF
-
-        # copy the units used by this test
-        cp $TEST_BASE_DIR/{hello.service,sleep.service,hello-after-sleep.target,unstoppable.service} \
-            $initdir/etc/systemd/system
-        cp test-jobs.sh $initdir/
+        cp testsuite.sh $initdir/
 
         setup_testsuite
     ) || return 1
