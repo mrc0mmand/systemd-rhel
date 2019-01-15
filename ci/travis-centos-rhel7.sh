@@ -52,8 +52,11 @@ for phase in "${PHASES[@]}"; do
                                      --enable-gtk-doc --enable-compat-libs --disable-sysusers \
                                      --disable-ldconfig --enable-lz4 --with-sysvinit-path=/etc/rc.d/init.d
             $DOCKER_EXEC make
+            $DOCKER_EXEC systemd-analyze set-log-level debug
             if ! $DOCKER_EXEC make check; then
                 $DOCKER_EXEC cat test-suite.log
+                $DOCKER_EXEC journalctl -r --no-pager
+                $DOCKER_EXEC dmesg
                 exit 1
             fi
             ;;
